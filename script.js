@@ -100,22 +100,10 @@ function deleteNode(target) {
     draw();
 }
 
-// Automatically draws all nodes, edges, and the Bezier curve
+// Automatically draws all nodes, and the Bezier curve
 function draw() {
     context.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
-    // Draw edges (polyline)
-    for (let i = 0; i < edges.length; i++) {
-        let fromNode = edges[i].from;
-        let toNode = edges[i].to;
-        context.beginPath();
-        context.strokeStyle = fromNode.strokeStyle;
-        context.moveTo(fromNode.x, fromNode.y);
-        context.lineTo(toNode.x, toNode.y);
-        context.stroke();
-    }
-
-    // Draw nodes
     for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i];
         context.beginPath();
@@ -128,26 +116,32 @@ function draw() {
 
     // Draw Bezier curve
     if (nodes.length > 1) {
-        drawBezierCurve(nodes);
+        drawBezierCurve(context,nodes);
     }
 }
 
 // Function to draw the Bezier curve from nodes
-function drawBezierCurve(nodes) {
-    if (nodes.length < 3) return;
+function drawBezierCurve(context, nodes) {
+    if (nodes.length < 2) return;
 
     context.beginPath();
     context.moveTo(nodes[0].x, nodes[0].y);
 
-    for (let i = 1; i < nodes.length - 1; i++) {
-        let xc = (nodes[i].x + nodes[i + 1].x) / 2;
-        let yc = (nodes[i].y + nodes[i + 1].y) / 2;
-        context.quadraticCurveTo(nodes[i].x, nodes[i].y, xc, yc);
+
+    for(let i=0; i <= nodes.length-1;i++){
+        let p0 = nodes[i-1] || nodes[i];
+        let p1 = nodes[i];
+        let p2 = nodes[i+1] || p1;
+        let p3 = nodes[i+2] || p2;
+
+        let cp1x= p1.x+(p2.x-p0.x) /6;
+        let cp1y = p1.y + (p2.y - p0.y) / 6;
+        let cp2x = p2.x - (p3.x - p1.x) / 6;
+        let cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
     }
 
-    context.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
-    context.strokeStyle = '#ff0000';
-    context.lineWidth = 2;
     context.stroke();
 }
 
