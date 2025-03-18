@@ -5,29 +5,6 @@
     font-family: 'Kumbh Sans', sans-serif;
 }
 
-#nav_bar{
-    background-color: gray;
-    height: 80px;
-    display: flex;
-    border-color: black 4px solid;
-}
-
-.btn_container{
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    width: 8rem;
-    margin-bottom: 1rem;
-    margin-top: 1rem;
-    border-radius: 20px;
-    height: fit-content;
-}
-
-.btn{
-    font-weight: 600;
-    padding: 1rem;
-}
-
 :root {
     --root-font-size: 12px;
     --bg: #fafafa;
@@ -53,4 +30,5 @@ html, body {
     -moz-osx-font-smoothing: grayscale;
     outline: 0;
 }
+
 
