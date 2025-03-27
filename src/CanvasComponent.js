@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 
 const CanvasComponent = () => {
   const canvasRef = useRef(null);
-  const nodesRef = useRef([]);
-  const edgesRef = useRef([]);
+  const curvesRef = useRef([[]]); // Array of arrays, each sub-array is a separate curve
   const selectionRef = useRef(null);
+  const isDrawingNewCurveRef = useRef(false);
 
   // Initialize and resize canvas
   useEffect(() => {
@@ -29,22 +29,25 @@ const CanvasComponent = () => {
   const draw = (context) => {
     context.clearRect(0, 0, window.innerWidth, window.innerHeight);
     
-    // Draw nodes
-    for (let i = 0; i < nodesRef.current.length; i++) {
-      const node = nodesRef.current[i];
-      context.beginPath();
-      context.fillStyle = node.selected ? node.selectedFill : node.fillStyle;
-      context.arc(node.x, node.y, node.radius, 0, Math.PI * 2, true);
-      context.strokeStyle = node.strokeStyle;
-      context.fill();
-      context.stroke();
-    }
-    
-    // Draw Bezier curve
-    if (nodesRef.current.length > 1) {
-      drawBezierCurve(context, nodesRef.current);
-      plotBezierPoints(context, nodesRef.current);
-    }
+    // Draw all curves
+    curvesRef.current.forEach(curve => {
+      // Draw nodes for this curve
+      for (let i = 0; i < curve.length; i++) {
+        const node = curve[i];
+        context.beginPath();
+        context.fillStyle = node.selected ? node.selectedFill : node.fillStyle;
+        context.arc(node.x, node.y, node.radius, 0, Math.PI * 2, true);
+        context.strokeStyle = node.strokeStyle;
+        context.fill();
+        context.stroke();
+      }
+      
+      // Draw Bezier curve if it has enough points
+      if (curve.length > 1) {
+        drawBezierCurve(context, curve);
+        plotBezierPoints(context, curve);
+      }
+    });
   };
 
   const drawBezierCurve = (context, nodes) => {
@@ -140,11 +143,12 @@ const CanvasComponent = () => {
       selected: false
     };
 
-    nodesRef.current.push(node);
-
-    if (nodesRef.current.length > 1) {
-      const previousNode = nodesRef.current[nodesRef.current.length - 2];
-      edgesRef.current.push({ from: previousNode, to: node });
+    // Add to current curve or start new curve if flag is set
+    if (isDrawingNewCurveRef.current || curvesRef.current.length === 0) {
+      curvesRef.current.push([node]);
+      isDrawingNewCurveRef.current = false;
+    } else {
+      curvesRef.current[curvesRef.current.length - 1].push(node);
     }
 
     draw(context);
@@ -161,12 +165,18 @@ const CanvasComponent = () => {
   };
 
   const within = (x, y) => {
-    return nodesRef.current.find(n => {
-      return x > (n.x - n.radius) && 
-             y > (n.y - n.radius) &&
-             x < (n.x + n.radius) &&
-             y < (n.y + n.radius);
-    });
+    // Search through all curves for the node
+    for (const curve of curvesRef.current) {
+      for (const node of curve) {
+        if (x > (node.x - node.radius) && 
+            y > (node.y - node.radius) &&
+            x < (node.x + node.radius) &&
+            y < (node.y + node.radius)) {
+          return node;
+        }
+      }
+    }
+    return null;
   };
 
   const handleMouseDown = (e) => {
@@ -205,8 +215,22 @@ const CanvasComponent = () => {
 
   const deleteNode = (target) => {
     if (!target) return;
-    nodesRef.current = nodesRef.current.filter(n => n !== target);
-    edgesRef.current = edgesRef.current.filter(edge => edge.from !== target && edge.to !== target);
+    
+    // Find and remove the node from its curve
+    for (let i = 0; i < curvesRef.current.length; i++) {
+      const curve = curvesRef.current[i];
+      const index = curve.indexOf(target);
+      if (index !== -1) {
+        curve.splice(index, 1);
+        
+        // If curve is now empty, remove it
+        if (curve.length === 0) {
+          curvesRef.current.splice(i, 1);
+        }
+        break;
+      }
+    }
+    
     if (selectionRef.current === target) {
       selectionRef.current = null;
     }
@@ -218,6 +242,9 @@ const CanvasComponent = () => {
     const handleKeyDown = (e) => {
       if (e.key === "Backspace" && selectionRef.current) {
         deleteNode(selectionRef.current);
+      } else if (e.key === "n" || e.key === "N") {
+        // Press 'n' to start a new curve
+        isDrawingNewCurveRef.current = true;
       }
     };
 
