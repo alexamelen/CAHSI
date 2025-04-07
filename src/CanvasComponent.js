@@ -258,6 +258,7 @@ const CanvasComponent = () => {
       const newY = e.clientY - rect.top;
       const context = canvas.getContext('2d');
       
+      // Find which curve and node index this is
       let curveIndex = -1;
       let nodeIndex = -1;
       for (let i = 0; i < curvesRef.current.length; i++) {
@@ -274,31 +275,101 @@ const CanvasComponent = () => {
         const isClosed = closedCurvesRef.current.has(curveIndex);
         const oldPosition = { x: selectionRef.current.x, y: selectionRef.current.y };
         
+        // Temporarily update position for checking
         selectionRef.current.x = newX;
         selectionRef.current.y = newY;
         
         let hasIntersection = false;
         
+        // Only check adjacent segments if they would create problems
         if (curve.length > 1) {
           const prevIndex = (nodeIndex - 1 + curve.length) % curve.length;
           const nextIndex = (nodeIndex + 1) % curve.length;
+          const prevPrevIndex = (nodeIndex - 2 + curve.length) % curve.length;
+          const nextNextIndex = (nodeIndex + 2) % curve.length;
           
-          if (nodeIndex > 0 || isClosed) {
+          // Check previous segment (if it exists)
+          if ((nodeIndex > 0 || isClosed) && curve.length > 2) {
             const prevNode = curve[prevIndex];
-            if (checkIntersections(curveIndex, prevNode, selectionRef.current)) {
-              hasIntersection = true;
+            const prevPrevNode = curve[prevPrevIndex];
+            
+            // Only check if this would intersect with non-adjacent segments
+            for (let i = 0; i < curve.length - 1; i++) {
+              // Skip adjacent segments
+              if (i === prevIndex || i === nodeIndex || 
+                  (i + 1) % curve.length === prevIndex || 
+                  (i + 1) % curve.length === nodeIndex) continue;
+                  
+              const segStart = curve[i];
+              const segEnd = curve[(i + 1) % curve.length];
+              
+              if (lineSegmentsIntersect(prevNode, selectionRef.current, segStart, segEnd)) {
+                hasIntersection = true;
+                break;
+              }
             }
           }
           
-          if ((nodeIndex < curve.length - 1 || isClosed) && !hasIntersection) {
+          // Check next segment (if it exists)
+          if ((nodeIndex < curve.length - 1 || isClosed) && !hasIntersection && curve.length > 2) {
             const nextNode = curve[nextIndex];
-            if (checkIntersections(curveIndex, selectionRef.current, nextNode)) {
-              hasIntersection = true;
+            const nextNextNode = curve[nextNextIndex];
+            
+            // Only check if this would intersect with non-adjacent segments
+            for (let i = 0; i < curve.length - 1; i++) {
+              // Skip adjacent segments
+              if (i === nodeIndex || i === nextIndex || 
+                  (i + 1) % curve.length === nodeIndex || 
+                  (i + 1) % curve.length === nextIndex) continue;
+                  
+              const segStart = curve[i];
+              const segEnd = curve[(i + 1) % curve.length];
+              
+              if (lineSegmentsIntersect(selectionRef.current, nextNode, segStart, segEnd)) {
+                hasIntersection = true;
+                break;
+              }
             }
           }
         }
         
+        // Also check for intersections with other curves
+        if (!hasIntersection) {
+          for (let i = 0; i < curvesRef.current.length; i++) {
+            if (i === curveIndex) continue;
+            
+            const otherCurve = curvesRef.current[i];
+            const isOtherClosed = closedCurvesRef.current.has(i);
+            const numSegments = isOtherClosed ? otherCurve.length : otherCurve.length - 1;
+            
+            for (let j = 0; j < numSegments; j++) {
+              const segStart = otherCurve[j % otherCurve.length];
+              const segEnd = otherCurve[(j + 1) % otherCurve.length];
+              
+              // Check both adjacent segments against this foreign segment
+              if (nodeIndex > 0 || isClosed) {
+                const prevNode = curve[(nodeIndex - 1 + curve.length) % curve.length];
+                if (lineSegmentsIntersect(prevNode, selectionRef.current, segStart, segEnd)) {
+                  hasIntersection = true;
+                  break;
+                }
+              }
+              
+              if ((nodeIndex < curve.length - 1 || isClosed) && !hasIntersection) {
+                const nextNode = curve[(nodeIndex + 1) % curve.length];
+                if (lineSegmentsIntersect(selectionRef.current, nextNode, segStart, segEnd)) {
+                  hasIntersection = true;
+                  break;
+                }
+              }
+            }
+            
+            if (hasIntersection) break;
+          }
+        }
+        
         if (hasIntersection) {
+          // Revert position
           selectionRef.current.x = oldPosition.x;
           selectionRef.current.y = oldPosition.y;
         }
@@ -458,4 +529,4 @@ const CanvasComponent = () => {
   );
 };
 
-export default CanvasComponent;
+export default CanvasComponent; 
