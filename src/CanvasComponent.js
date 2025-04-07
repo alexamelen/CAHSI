@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback} from 'react';
+import ControlsPanel from './ControlsPanel';
+
 
 const CanvasComponent = () => {
   const canvasRef = useRef(null);
@@ -6,6 +8,7 @@ const CanvasComponent = () => {
   const selectionRef = useRef(null);
   const isDrawingNewCurveRef = useRef(false);
   const closedCurvesRef = useRef(new Set());
+  const [numPoints, setNumPoints] = useState(20); // New state for slider
 
   // Initialize and resize canvas
   useEffect(() => {
@@ -26,13 +29,11 @@ const CanvasComponent = () => {
     };
   }, []);
 
-  // Draw functions
-  const draw = (context) => {
+  const draw = useCallback((context) => {
     context.clearRect(0, 0, window.innerWidth, window.innerHeight);
     
-    // Draw all curves
     curvesRef.current.forEach((curve, curveIndex) => {
-      // Draw nodes for this curve
+      // Draw nodes
       for (let i = 0; i < curve.length; i++) {
         const node = curve[i];
         context.beginPath();
@@ -43,13 +44,13 @@ const CanvasComponent = () => {
         context.stroke();
       }
       
-      // Draw Bezier curve if it has enough points
+      // Draw curve and points
       if (curve.length > 1) {
         drawBezierCurve(context, curve, curveIndex);
-        plotBezierPoints(context, curve, curveIndex);
+        plotBezierPoints(context, curve, curveIndex, numPoints); // Pass numPoints here
       }
     });
-  };
+  }, [numPoints]); // Include numPoints in dependencies
 
   const drawBezierCurve = (context, nodes, curveIndex) => {
     if (nodes.length < 2) return;
@@ -84,35 +85,102 @@ const CanvasComponent = () => {
     context.stroke();
   };
 
-  const plotBezierPoints = (context, nodes, curveIndex, steps = 10) => {
+  const plotBezierPoints = (context, nodes, curveIndex, numPoints = 20) => {
     if (nodes.length < 2) return;
-
+  
     const isClosed = closedCurvesRef.current.has(curveIndex);
     const numSegments = isClosed ? nodes.length : nodes.length - 1;
-    context.fillStyle = "red";
-
+    
+    // Calculate total length and segment lengths
+    let totalLength = 0;
+    const segmentLengths = [];
+    const segments = [];
+  
     for (let i = 0; i < numSegments; i++) {
       const p0 = nodes[(i - 1 + nodes.length) % nodes.length];
       const p1 = nodes[i % nodes.length];
       const p2 = nodes[(i + 1) % nodes.length];
       const p3 = nodes[(i + 2) % nodes.length];
-
+  
       let cp1x = p1.x + (p2.x - p0.x) / 6;
       let cp1y = p1.y + (p2.y - p0.y) / 6;
       let cp2x = p2.x - (p3.x - p1.x) / 6;
       let cp2y = p2.y - (p3.y - p1.y) / 6;
-
+  
       if (!isClosed && i === nodes.length - 2) {
         cp2x = (p1.x + p2.x) / 2;
         cp2y = (p1.y + p2.y) / 2;
       }
-
-      for (let t = 0; t <= 1; t += 1 / steps) {
+  
+      // Store segment info
+      segments.push({
+        p1, cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y }, p2
+      });
+  
+      // Calculate segment length
+      let segmentLength = 0;
+      let prevPoint = p1;
+      const steps = 10;
+      for (let j = 1; j <= steps; j++) {
+        const t = j / steps;
         const point = cubicBezierPoint(t, p1, { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, p2);
-        context.beginPath();
-        context.arc(point.x, point.y, 2, 0, Math.PI * 2);
-        context.fill();
+        segmentLength += Math.sqrt(
+          Math.pow(point.x - prevPoint.x, 2) + 
+          Math.pow(point.y - prevPoint.y, 2)
+        );
+        prevPoint = point;
       }
+      
+      segmentLengths.push(segmentLength);
+      totalLength += segmentLength;
+    }
+  
+    // Draw points
+    context.fillStyle = "red";
+    const spacing = totalLength / (numPoints - 1);
+    let accumulatedLength = 0;
+    let currentSegment = 0;
+  
+    // Always draw first point
+    context.beginPath();
+    context.arc(nodes[0].x, nodes[0].y, 2, 0, Math.PI * 2);
+    context.fill();
+  
+    for (let i = 1; i < numPoints - 1; i++) {
+      const targetLength = i * spacing;
+      
+      // Find which segment contains this length
+      while (currentSegment < segmentLengths.length && 
+             accumulatedLength + segmentLengths[currentSegment] < targetLength) {
+        accumulatedLength += segmentLengths[currentSegment];
+        currentSegment++;
+      }
+      
+      if (currentSegment >= segments.length) break;
+      
+      // Calculate t value within the segment
+      const segment = segments[currentSegment];
+      const segmentT = (targetLength - accumulatedLength) / segmentLengths[currentSegment];
+      
+      // Get the point
+      const point = cubicBezierPoint(
+        segmentT,
+        segment.p1,
+        segment.cp1,
+        segment.cp2,
+        segment.p2
+      );
+      
+      context.beginPath();
+      context.arc(point.x, point.y, 2, 0, Math.PI * 2);
+      context.fill();
+    }
+  
+    // Draw last point if not closed
+    if (!isClosed) {
+      context.beginPath();
+      context.arc(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y, 2, 0, Math.PI * 2);
+      context.fill();
     }
   };
 
@@ -518,6 +586,15 @@ const CanvasComponent = () => {
 
   return (
     <div style={{ position: 'relative' }}>
+      <ControlsPanel
+        numPoints={numPoints}
+        onNumPointsChange={setNumPoints}
+        onNewCurve={() => (isDrawingNewCurveRef.current = true)}
+        onCloseCurve={closeCurrentCurve}
+        onDeletePoint={() => {
+          if (selectionRef.current) deleteNode(selectionRef.current);
+        }}
+      />
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
