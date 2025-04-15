@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const ControlsPanel = ({
   numPoints,
@@ -6,14 +6,23 @@ const ControlsPanel = ({
   onNewCurve,
   onCloseCurve,
   onDeletePoint,
+  onToggleMode,  // Add this new prop
 }) => {
+  const [isStraightMode, setIsStraightMode] = useState(false);
+
+  const handleModeToggle = () => {
+    const newMode = !isStraightMode;
+    setIsStraightMode(newMode);
+    onToggleMode(newMode);  // Notify parent component
+  };
+
   return (
     <div style={{
       position: 'fixed',
       top: 0,
       left: 0,
-      width: '25vw',  // 25% of viewport width
-      height: '100vh', // full viewport height
+      width: '25vw',
+      height: '100vh',
       background: 'rgba(128, 125, 126, 0.43)',
       padding: '20px',
       boxSizing: 'border-box',
@@ -22,6 +31,36 @@ const ControlsPanel = ({
       boxShadow: '2px 0 5px rgba(0,0,0,0.1)',
     }}>
       <h2 style={{ marginTop: 0 }}>Controls</h2>
+      
+      {/* Mode Toggle Button */}
+      <div style={{ marginBottom: '20px' }}>
+        <button 
+          onClick={handleModeToggle}
+          style={{
+            padding: '8px',
+            fontSize: '14px',
+            width: '100%',
+            backgroundColor: isStraightMode ? '#3498db' : '#9b59b6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            transition: 'background-color 0.3s',
+          }}
+        >
+          {isStraightMode ? 'Straight Line Mode' : 'Curve Mode'}
+        </button>
+        <div style={{
+          marginTop: '5px',
+          fontSize: '0.8em',
+          color: '#333',
+          textAlign: 'center'
+        }}>
+          {isStraightMode 
+            ? 'Click to place straight segments' 
+            : 'Click to place curved segments'}
+        </div>
+      </div>
       
       <div style={{ marginBottom: '20px' }}>
         <label style={{ display: 'block', marginBottom: '5px' }}>

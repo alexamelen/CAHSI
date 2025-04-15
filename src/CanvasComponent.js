@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback} from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ControlsPanel from './ControlsPanel';
-
 
 const CanvasComponent = () => {
   const canvasRef = useRef(null);
@@ -8,7 +7,8 @@ const CanvasComponent = () => {
   const selectionRef = useRef(null);
   const isDrawingNewCurveRef = useRef(false);
   const closedCurvesRef = useRef(new Set());
-  const [numPoints, setNumPoints] = useState(20); // New state for slider
+  const [numPoints, setNumPoints] = useState(20);
+  const [isStraightMode, setIsStraightMode] = useState(false); // New state for mode
 
   // Initialize and resize canvas
   useEffect(() => {
@@ -42,15 +42,22 @@ const CanvasComponent = () => {
         context.strokeStyle = node.strokeStyle;
         context.fill();
         context.stroke();
+        
+        // Add straight/curve indicator near the node
+        if (i > 0 && node.isStraightSegment) {
+          context.fillStyle = 'blue';
+          context.font = '10px Arial';
+          context.fillText('(straight)', node.x + 15, node.y - 15);
+        }
       }
       
       // Draw curve and points
       if (curve.length > 1) {
         drawBezierCurve(context, curve, curveIndex);
-        plotBezierPoints(context, curve, curveIndex, numPoints); // Pass numPoints here
+        plotBezierPoints(context, curve, curveIndex, numPoints);
       }
     });
-  }, [numPoints]); // Include numPoints in dependencies
+  }, [numPoints]);
 
   const drawBezierCurve = (context, nodes, curveIndex) => {
     if (nodes.length < 2) return;
@@ -62,22 +69,29 @@ const CanvasComponent = () => {
     const numSegments = isClosed ? nodes.length : nodes.length - 1;
 
     for (let i = 0; i < numSegments; i++) {
-      const p0 = nodes[(i - 1 + nodes.length) % nodes.length];
       const p1 = nodes[i % nodes.length];
       const p2 = nodes[(i + 1) % nodes.length];
-      const p3 = nodes[(i + 2) % nodes.length];
 
-      let cp1x = p1.x + (p2.x - p0.x) / 6;
-      let cp1y = p1.y + (p2.y - p0.y) / 6;
-      let cp2x = p2.x - (p3.x - p1.x) / 6;
-      let cp2y = p2.y - (p3.y - p1.y) / 6;
+      if (p1.isStraightSegment) {
+        // Draw straight line
+        context.lineTo(p2.x, p2.y);
+      } else {
+        // Draw curve (only if we have enough points)
+        const p0 = nodes[(i - 1 + nodes.length) % nodes.length];
+        const p3 = nodes[(i + 2) % nodes.length];
 
-      if (!isClosed && i === nodes.length - 2) {
-        cp2x = (p1.x + p2.x) / 2;
-        cp2y = (p1.y + p2.y) / 2;
+        let cp1x = p1.x + (p2.x - p0.x) / 6;
+        let cp1y = p1.y + (p2.y - p0.y) / 6;
+        let cp2x = p2.x - (p3.x - p1.x) / 6;
+        let cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        if (!isClosed && i === nodes.length - 2) {
+          cp2x = (p1.x + p2.x) / 2;
+          cp2y = (p1.y + p2.y) / 2;
+        }
+
+        context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
       }
-
-      context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
     }
 
     context.strokeStyle = '#000000';
@@ -97,42 +111,53 @@ const CanvasComponent = () => {
     const segments = [];
   
     for (let i = 0; i < numSegments; i++) {
-      const p0 = nodes[(i - 1 + nodes.length) % nodes.length];
-      const p1 = nodes[i % nodes.length];
-      const p2 = nodes[(i + 1) % nodes.length];
-      const p3 = nodes[(i + 2) % nodes.length];
-  
-      let cp1x = p1.x + (p2.x - p0.x) / 6;
-      let cp1y = p1.y + (p2.y - p0.y) / 6;
-      let cp2x = p2.x - (p3.x - p1.x) / 6;
-      let cp2y = p2.y - (p3.y - p1.y) / 6;
-  
-      if (!isClosed && i === nodes.length - 2) {
-        cp2x = (p1.x + p2.x) / 2;
-        cp2y = (p1.y + p2.y) / 2;
-      }
-  
-      // Store segment info
-      segments.push({
-        p1, cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y }, p2
-      });
-  
-      // Calculate segment length
-      let segmentLength = 0;
-      let prevPoint = p1;
-      const steps = 10;
-      for (let j = 1; j <= steps; j++) {
-        const t = j / steps;
-        const point = cubicBezierPoint(t, p1, { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, p2);
-        segmentLength += Math.sqrt(
-          Math.pow(point.x - prevPoint.x, 2) + 
-          Math.pow(point.y - prevPoint.y, 2)
-        );
-        prevPoint = point;
-      }
-      
-      segmentLengths.push(segmentLength);
-      totalLength += segmentLength;
+        const p0 = nodes[(i - 1 + nodes.length) % nodes.length];
+        const p1 = nodes[i % nodes.length];
+        const p2 = nodes[(i + 1) % nodes.length];
+        const p3 = nodes[(i + 2) % nodes.length];
+        const isStraight = p1.isStraightSegment;
+
+        // Store segment info
+        segments.push({ p1, p2, isStraight });
+
+        // Calculate segment length
+        let segmentLength = 0;
+
+        if (isStraight) {
+            // Straight line - simple distance calculation
+            segmentLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        } else {
+            // Curve - use existing bezier length calculation
+            let cp1x = p1.x + (p2.x - p0.x) / 6;
+            let cp1y = p1.y + (p2.y - p0.y) / 6;
+            let cp2x = p2.x - (p3.x - p1.x) / 6;
+            let cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            if (!isClosed && i === nodes.length - 2) {
+                cp2x = (p1.x + p2.x) / 2;
+                cp2y = (p1.y + p2.y) / 2;
+            }
+
+            // Approximate curve length
+            let prevPoint = p1;
+            const steps = 10;
+            for (let j = 1; j <= steps; j++) {
+                const t = j / steps;
+                const point = cubicBezierPoint(t, p1, { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, p2);
+                segmentLength += Math.sqrt(
+                    Math.pow(point.x - prevPoint.x, 2) + 
+                    Math.pow(point.y - prevPoint.y, 2)
+                );
+                prevPoint = point;
+            }
+            
+            // Store control points for curved segments
+            segments[i].cp1 = { x: cp1x, y: cp1y };
+            segments[i].cp2 = { x: cp2x, y: cp2y };
+        }
+        
+        segmentLengths.push(segmentLength);
+        totalLength += segmentLength;
     }
   
     // Draw points
@@ -147,40 +172,49 @@ const CanvasComponent = () => {
     context.fill();
   
     for (let i = 1; i < numPoints - 1; i++) {
-      const targetLength = i * spacing;
-      
-      // Find which segment contains this length
-      while (currentSegment < segmentLengths.length && 
-             accumulatedLength + segmentLengths[currentSegment] < targetLength) {
-        accumulatedLength += segmentLengths[currentSegment];
-        currentSegment++;
-      }
-      
-      if (currentSegment >= segments.length) break;
-      
-      // Calculate t value within the segment
-      const segment = segments[currentSegment];
-      const segmentT = (targetLength - accumulatedLength) / segmentLengths[currentSegment];
-      
-      // Get the point
-      const point = cubicBezierPoint(
-        segmentT,
-        segment.p1,
-        segment.cp1,
-        segment.cp2,
-        segment.p2
-      );
-      
-      context.beginPath();
-      context.arc(point.x, point.y, 2, 0, Math.PI * 2);
-      context.fill();
+        const targetLength = i * spacing;
+        
+        // Find which segment contains this length
+        while (currentSegment < segmentLengths.length && 
+               accumulatedLength + segmentLengths[currentSegment] < targetLength) {
+            accumulatedLength += segmentLengths[currentSegment];
+            currentSegment++;
+        }
+        
+        if (currentSegment >= segments.length) break;
+        
+        const segment = segments[currentSegment];
+        const segmentT = (targetLength - accumulatedLength) / segmentLengths[currentSegment];
+        
+        // Get the point - different calculation for straight vs curved
+        let point;
+        if (segment.isStraight) {
+            // Linear interpolation for straight segments
+            point = {
+                x: segment.p1.x + (segment.p2.x - segment.p1.x) * segmentT,
+                y: segment.p1.y + (segment.p2.y - segment.p1.y) * segmentT
+            };
+        } else {
+            // Bezier calculation for curved segments
+            point = cubicBezierPoint(
+                segmentT,
+                segment.p1,
+                segment.cp1,
+                segment.cp2,
+                segment.p2
+            );
+        }
+        
+        context.beginPath();
+        context.arc(point.x, point.y, 2, 0, Math.PI * 2);
+        context.fill();
     }
   
     // Draw last point if not closed
     if (!isClosed) {
-      context.beginPath();
-      context.arc(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y, 2, 0, Math.PI * 2);
-      context.fill();
+        context.beginPath();
+        context.arc(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y, 2, 0, Math.PI * 2);
+        context.fill();
     }
   };
 
@@ -199,17 +233,12 @@ const CanvasComponent = () => {
   };
 
   const lineSegmentsIntersect = (p1, p2, p3, p4) => {
-    // Calculate the direction of the segments
     const ccw = (A, B, C) => (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
-    
-    // Check if the segments intersect
     const intersect = ccw(p1, p3, p4) !== ccw(p2, p3, p4) && 
                      ccw(p1, p2, p3) !== ccw(p1, p2, p4);
     
-    // If they don't intersect in the general case, return false
     if (!intersect) return false;
     
-    // Special case: check if the segments are collinear and overlapping
     const onSegment = (p, q, r) => {
       return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
              q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
@@ -217,8 +246,8 @@ const CanvasComponent = () => {
     
     const orientation = (p, q, r) => {
       const val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
-      if (val === 0) return 0;  // colinear
-      return (val > 0) ? 1 : 2; // clock or counterclock wise
+      if (val === 0) return 0;
+      return (val > 0) ? 1 : 2;
     };
     
     const o1 = orientation(p1, p2, p3);
@@ -226,10 +255,7 @@ const CanvasComponent = () => {
     const o3 = orientation(p3, p4, p1);
     const o4 = orientation(p3, p4, p2);
     
-    // General case
     if (o1 !== o2 && o3 !== o4) return true;
-    
-    // Special cases
     if (o1 === 0 && onSegment(p1, p3, p2)) return true;
     if (o2 === 0 && onSegment(p1, p4, p2)) return true;
     if (o3 === 0 && onSegment(p3, p1, p4)) return true;
@@ -241,7 +267,6 @@ const CanvasComponent = () => {
   const checkIntersections = (curveIndex, newSegmentStart, newSegmentEnd) => {
     const allSegments = [];
     
-    // Add segments from other curves
     curvesRef.current.forEach((curve, idx) => {
       if (idx === curveIndex || curve.length < 2) return;
       
@@ -255,7 +280,6 @@ const CanvasComponent = () => {
       }
     });
     
-    // Add segments from the current curve (for self-intersection check)
     const currentCurve = curvesRef.current[curveIndex];
     if (currentCurve && currentCurve.length > 2) {
       for (let i = 0; i < currentCurve.length - 2; i++) {
@@ -266,7 +290,6 @@ const CanvasComponent = () => {
       }
     }
     
-    // Check new segment against all relevant segments
     for (const segment of allSegments) {
       if (lineSegmentsIntersect(
         newSegmentStart, newSegmentEnd,
@@ -285,7 +308,7 @@ const CanvasComponent = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const context = canvas.getContext('2d');
-  
+
     const node = {
       x,
       y,
@@ -293,9 +316,10 @@ const CanvasComponent = () => {
       fillStyle: '#000000',
       strokeStyle: '#000000',
       selectedFill: '#bdc1c9',
-      selected: false
+      selected: false,
+      isStraightSegment: isStraightMode // Only use toggle state
     };
-  
+
     if (isDrawingNewCurveRef.current || curvesRef.current.length === 0) {
       curvesRef.current.push([node]);
       isDrawingNewCurveRef.current = false;
@@ -314,7 +338,7 @@ const CanvasComponent = () => {
       
       lastCurve.push(node);
     }
-  
+
     draw(context);
   };
 
@@ -326,7 +350,6 @@ const CanvasComponent = () => {
       const newY = e.clientY - rect.top;
       const context = canvas.getContext('2d');
       
-      // Find which curve and node index this is
       let curveIndex = -1;
       let nodeIndex = -1;
       for (let i = 0; i < curvesRef.current.length; i++) {
@@ -343,27 +366,22 @@ const CanvasComponent = () => {
         const isClosed = closedCurvesRef.current.has(curveIndex);
         const oldPosition = { x: selectionRef.current.x, y: selectionRef.current.y };
         
-        // Temporarily update position for checking
         selectionRef.current.x = newX;
         selectionRef.current.y = newY;
         
         let hasIntersection = false;
         
-        // Only check adjacent segments if they would create problems
         if (curve.length > 1) {
           const prevIndex = (nodeIndex - 1 + curve.length) % curve.length;
           const nextIndex = (nodeIndex + 1) % curve.length;
           const prevPrevIndex = (nodeIndex - 2 + curve.length) % curve.length;
           const nextNextIndex = (nodeIndex + 2) % curve.length;
           
-          // Check previous segment (if it exists)
           if ((nodeIndex > 0 || isClosed) && curve.length > 2) {
             const prevNode = curve[prevIndex];
             const prevPrevNode = curve[prevPrevIndex];
             
-            // Only check if this would intersect with non-adjacent segments
             for (let i = 0; i < curve.length - 1; i++) {
-              // Skip adjacent segments
               if (i === prevIndex || i === nodeIndex || 
                   (i + 1) % curve.length === prevIndex || 
                   (i + 1) % curve.length === nodeIndex) continue;
@@ -378,14 +396,11 @@ const CanvasComponent = () => {
             }
           }
           
-          // Check next segment (if it exists)
           if ((nodeIndex < curve.length - 1 || isClosed) && !hasIntersection && curve.length > 2) {
             const nextNode = curve[nextIndex];
             const nextNextNode = curve[nextNextIndex];
             
-            // Only check if this would intersect with non-adjacent segments
             for (let i = 0; i < curve.length - 1; i++) {
-              // Skip adjacent segments
               if (i === nodeIndex || i === nextIndex || 
                   (i + 1) % curve.length === nodeIndex || 
                   (i + 1) % curve.length === nextIndex) continue;
@@ -401,7 +416,6 @@ const CanvasComponent = () => {
           }
         }
         
-        // Also check for intersections with other curves
         if (!hasIntersection) {
           for (let i = 0; i < curvesRef.current.length; i++) {
             if (i === curveIndex) continue;
@@ -414,7 +428,6 @@ const CanvasComponent = () => {
               const segStart = otherCurve[j % otherCurve.length];
               const segEnd = otherCurve[(j + 1) % otherCurve.length];
               
-              // Check both adjacent segments against this foreign segment
               if (nodeIndex > 0 || isClosed) {
                 const prevNode = curve[(nodeIndex - 1 + curve.length) % curve.length];
                 if (lineSegmentsIntersect(prevNode, selectionRef.current, segStart, segEnd)) {
@@ -437,7 +450,6 @@ const CanvasComponent = () => {
         }
         
         if (hasIntersection) {
-          // Revert position
           selectionRef.current.x = oldPosition.x;
           selectionRef.current.y = oldPosition.y;
         }
@@ -525,10 +537,8 @@ const CanvasComponent = () => {
       const lastNode = curve[curve.length - 1];
       const firstNode = curve[0];
       
-      // Only check segments that would be adjacent to the new closing segment
       const problematicSegments = [];
       
-      // Check against other curves
       curvesRef.current.forEach((otherCurve, idx) => {
         if (idx === currentCurveIndex || otherCurve.length < 2) return;
         
@@ -542,12 +552,10 @@ const CanvasComponent = () => {
         }
       });
       
-      // Check against non-adjacent segments in the same curve
       for (let i = 1; i < curve.length - 2; i++) {
         problematicSegments.push({ p1: curve[i], p2: curve[i + 1] });
       }
       
-      // Check the closing segment against all problematic segments
       let hasIntersection = false;
       for (const segment of problematicSegments) {
         if (lineSegmentsIntersect(lastNode, firstNode, segment.p1, segment.p2)) {
@@ -584,6 +592,10 @@ const CanvasComponent = () => {
     };
   }, []);
 
+  const handleToggleMode = (newMode) => {
+    setIsStraightMode(newMode);
+  };
+
   return (
     <div style={{ position: 'relative' }}>
       <ControlsPanel
@@ -594,6 +606,7 @@ const CanvasComponent = () => {
         onDeletePoint={() => {
           if (selectionRef.current) deleteNode(selectionRef.current);
         }}
+        onToggleMode={handleToggleMode}
       />
       <canvas
         ref={canvasRef}
@@ -606,4 +619,4 @@ const CanvasComponent = () => {
   );
 };
 
-export default CanvasComponent; 
+export default CanvasComponent;
