@@ -49,7 +49,7 @@ const CanvasComponent = () => {
   
     const isClosed = closedCurvesRef.current.has(curveIndex);
     const numSegments = isClosed ? nodes.length : nodes.length - 1;
-    
+  
     let totalLength = 0;
     const segmentLengths = [];
     const segments = [];
@@ -60,10 +60,8 @@ const CanvasComponent = () => {
       const p2 = nodes[(i + 1) % nodes.length];
       const p3 = nodes[(i + 2) % nodes.length];
       const isStraight = p1.isStraightSegment;
-
       segments.push({ p1, p2, isStraight });
       let segmentLength = 0;
-
       if (isStraight) {
         segmentLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
       } else {
@@ -71,12 +69,10 @@ const CanvasComponent = () => {
         let cp1y = p1.y + (p2.y - p0.y) / 6;
         let cp2x = p2.x - (p3.x - p1.x) / 6;
         let cp2y = p2.y - (p3.y - p1.y) / 6;
-
         if (!isClosed && i === nodes.length - 2) {
           cp2x = (p1.x + p2.x) / 2;
           cp2y = (p1.y + p2.y) / 2;
         }
-
         let prevPoint = p1;
         const steps = 10;
         for (let j = 1; j <= steps; j++) {
@@ -88,11 +84,11 @@ const CanvasComponent = () => {
           );
           prevPoint = point;
         }
-        
+  
         segments[i].cp1 = { x: cp1x, y: cp1y };
         segments[i].cp2 = { x: cp2x, y: cp2y };
       }
-      
+  
       segmentLengths.push(segmentLength);
       totalLength += segmentLength;
     }
@@ -108,18 +104,18 @@ const CanvasComponent = () => {
   
     for (let i = 1; i < points - 1; i++) {
       const targetLength = i * spacing;
-      
+  
       while (currentSegment < segmentLengths.length && 
              accumulatedLength + segmentLengths[currentSegment] < targetLength) {
         accumulatedLength += segmentLengths[currentSegment];
         currentSegment++;
       }
-      
+  
       if (currentSegment >= segments.length) break;
-      
+  
       const segment = segments[currentSegment];
       const segmentT = (targetLength - accumulatedLength) / segmentLengths[currentSegment];
-      
+  
       let point;
       if (segment.isStraight) {
         point = {
@@ -135,7 +131,7 @@ const CanvasComponent = () => {
           segment.p2
         );
       }
-      
+  
       context.beginPath();
       context.arc(point.x, point.y, 2, 0, Math.PI * 2);
       context.fill();
@@ -147,7 +143,7 @@ const CanvasComponent = () => {
       context.fill();
     }
   }, [cubicBezierPoint]);
-
+  
   const drawBezierCurve = useCallback((context, nodes, curveIndex) => {
     if (nodes.length < 2) return;
     context.beginPath();
