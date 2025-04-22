@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
-
 const ControlsPanel = ({
   numPoints,
   onNumPointsChange,
   onNewCurve,
   onCloseCurve,
   onDeletePoint,
-  onToggleMode,  // Add this new prop
+  onToggleMode,
 }) => {
   const [isStraightMode, setIsStraightMode] = useState(false);
 
   const handleModeToggle = () => {
     const newMode = !isStraightMode;
     setIsStraightMode(newMode);
-    onToggleMode(newMode);  // Notify parent component
+    onToggleMode(newMode);
   };
 
   return (
@@ -95,6 +94,27 @@ const ControlsPanel = ({
         >
           Delete Point (Del)
         </button>
+      </div>
+
+      {/* Intersection Note */}
+      <div style={{
+        marginTop: '30px',
+        padding: '15px',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: '5px',
+        borderLeft: '4px solid #e74c3c',
+      }}>
+        <h4 style={{ marginTop: 0, marginBottom: '10px', color: '#e74c3c' }}>
+          Note About Intersections
+        </h4>
+        <p style={{ 
+          margin: 0,
+          fontSize: '0.9em',
+          lineHeight: '1.5',
+          color: '#333'
+        }}>
+          Make sure your drawing does not include intersections. If an intersection is detected, you will be prompted to reconfigure your nodes!
+        </p>
       </div>
     </div>
   );
