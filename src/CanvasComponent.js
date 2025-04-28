@@ -11,6 +11,7 @@ const CanvasComponent = () => {
   const [isStraightMode, setIsStraightMode] = useState(false);
   const [isDiscretized, setIsDiscretized] = useState(false);
   const [segmentLengthRatio, setSegmentLengthRatio] = useState(1.0);
+  const [showNodesAndPoints, setShowNodesAndPoints] = useState(true);
 
   // Utility functions
   const cubicBezierPoint = useCallback((t, p0, cp1, cp2, p3) => {
@@ -39,7 +40,6 @@ const CanvasComponent = () => {
   
     return t > 0 && t < 1 && u > 0 && u < 1;
   };
-  
 
   // Get fitted points for discretization
   const getFittedPoints = useCallback((nodes, curveIndex, points = 20) => {
@@ -171,10 +171,10 @@ const CanvasComponent = () => {
         context.lineTo(endX, endY);
         context.stroke();
         
-        // Visual marker at segment end (optional)
+        // Always show blue dot at segment end (even when nodes are hidden)
         context.beginPath();
         context.arc(endX, endY, 2, 0, Math.PI * 2);
-        context.fillStyle = 'rgba(0, 0, 255, 0.5)';
+        context.fillStyle = 'rgba(0, 0, 255, 1)';
         context.fill();
       }
     } else {
@@ -210,6 +210,8 @@ const CanvasComponent = () => {
   }, [isDiscretized, numPoints, segmentLengthRatio, getFittedPoints]);
 
   const plotBezierPoints = useCallback((context, nodes, curveIndex, points = 20) => {
+    if (!showNodesAndPoints) return;
+    
     const fittedPoints = getFittedPoints(nodes, curveIndex, points);
     
     context.fillStyle = "red";
@@ -218,7 +220,7 @@ const CanvasComponent = () => {
       context.arc(point.x, point.y, 2, 0, Math.PI * 2);
       context.fill();
     });
-  }, [getFittedPoints]);
+  }, [getFittedPoints, showNodesAndPoints]);
 
   const draw = useCallback((context) => {
     // Clear the canvas
@@ -226,22 +228,24 @@ const CanvasComponent = () => {
     
     // Draw all curves
     curvesRef.current.forEach((curve, curveIndex) => {
-      // Draw control points (nodes)
-      curve.forEach(node => {
-        context.beginPath();
-        context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        context.fillStyle = node.selected ? node.selectedFill : node.fillStyle;
-        context.fill();
-        context.strokeStyle = node.strokeStyle;
-        context.stroke();
-        
-        // Label straight segments
-        if (node.isStraightSegment) {
-          context.fillStyle = 'blue';
-          context.font = '10px Arial';
-          context.fillText('(straight)', node.x + 15, node.y - 15);
-        }
-      });
+      // Draw control points (nodes) - only if showNodesAndPoints is true
+      if (showNodesAndPoints) {
+        curve.forEach(node => {
+          context.beginPath();
+          context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+          context.fillStyle = node.selected ? node.selectedFill : node.fillStyle;
+          context.fill();
+          context.strokeStyle = node.strokeStyle;
+          context.stroke();
+          
+          // Label straight segments
+          if (node.isStraightSegment) {
+            context.fillStyle = 'blue';
+            context.font = '10px Arial';
+            context.fillText('(straight)', node.x + 15, node.y - 15);
+          }
+        });
+      }
   
       // Only draw curves if we have at least 2 points
       if (curve.length > 1) {
@@ -270,13 +274,11 @@ const CanvasComponent = () => {
             context.lineTo(endX, endY);
             context.stroke();
             
-            // Visualize gap (optional)
-            if (segmentLengthRatio < 1) {
-              context.beginPath();
-              context.arc(endX, endY, 2, 0, Math.PI * 2);
-              context.fillStyle = 'rgba(0, 0, 255, 1)';
-              context.fill();
-            }
+            // Always show blue dot at segment end (even when nodes are hidden)
+            context.beginPath();
+            context.arc(endX, endY, 2, 0, Math.PI * 2);
+            context.fillStyle = 'rgba(0, 0, 255, 1)';
+            context.fill();
           }
         } else {
           // SMOOTH CURVE MODE
@@ -311,44 +313,21 @@ const CanvasComponent = () => {
           context.stroke();
         }
         
-        // Draw fitted points (red dots)
-        context.fillStyle = "red";
-        fittedPoints.forEach(point => {
-          context.beginPath();
-          context.arc(point.x, point.y, 2, 0, Math.PI * 2);
-          context.fill();
-        });
+        // Draw fitted points (red dots) - only if showNodesAndPoints is true
+        if (showNodesAndPoints) {
+          context.fillStyle = "red";
+          fittedPoints.forEach(point => {
+            context.beginPath();
+            context.arc(point.x, point.y, 2, 0, Math.PI * 2);
+            context.fill();
+          });
+        }
       }
     });
     
     // Draw faint connection lines in gaps (optional visual guide)
-    if (isDiscretized && segmentLengthRatio < 1) {
-      context.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-      context.setLineDash([2, 2]);
-      curvesRef.current.forEach((curve, curveIndex) => {
-        if (curve.length > 1) {
-          const isClosed = closedCurvesRef.current.has(curveIndex);
-          const fittedPoints = getFittedPoints(curve, curveIndex, numPoints);
-          
-          for (let i = 0; i < fittedPoints.length; i++) {
-            const current = fittedPoints[i];
-            const next = fittedPoints[(i + 1) % fittedPoints.length];
-            
-            if (!isClosed && i === fittedPoints.length - 1) continue;
-            
-            const gapStartX = current.x + (next.x - current.x) * segmentLengthRatio;
-            const gapStartY = current.y + (next.y - current.y) * segmentLengthRatio;
-            
-            context.beginPath();
-            context.moveTo(gapStartX, gapStartY);
-            context.lineTo(next.x, next.y);
-            context.stroke();
-          }
-        }
-      });
-      context.setLineDash([]);
-    }
-  }, [numPoints, isDiscretized, segmentLengthRatio, getFittedPoints]);
+    
+  }, [numPoints, isDiscretized, segmentLengthRatio, getFittedPoints, showNodesAndPoints]);
 
   // Canvas setup
   useEffect(() => {
@@ -568,10 +547,6 @@ const CanvasComponent = () => {
     }
   }, [draw, handleClick, doLinesIntersect, within]);
   
-  
-  
-  
-  // Update handleMouseDown to store original position
   const handleMouseDown = useCallback((e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -617,8 +592,6 @@ const CanvasComponent = () => {
       draw(context);
     }
   }, [draw]);
-  
-  
   
   const deleteNode = useCallback((target) => {
     if (!target) return;
@@ -752,8 +725,10 @@ const CanvasComponent = () => {
       }
     }
   }, [draw, doLinesIntersect]);
-  
-  
+
+  const toggleNodesAndPointsVisibility = useCallback(() => {
+    setShowNodesAndPoints(prev => !prev);
+  }, []);
 
   // Keyboard event
   useEffect(() => {
@@ -800,6 +775,8 @@ const CanvasComponent = () => {
         isDiscretized={isDiscretized}
         segmentLengthRatio={segmentLengthRatio}
         onSegmentLengthChange={handleSegmentLengthChange}
+        showNodesAndPoints={showNodesAndPoints}
+        onToggleNodesAndPoints={toggleNodesAndPointsVisibility}
       />
       <canvas
         ref={canvasRef}

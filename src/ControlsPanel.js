@@ -11,6 +11,8 @@ const ControlsPanel = ({
   isDiscretized,
   segmentLengthRatio,
   onSegmentLengthChange,
+  showNodesAndPoints,
+  onToggleNodesAndPoints,
 }) => {
   const [isStraightMode, setIsStraightMode] = useState(false);
 
@@ -236,6 +238,20 @@ const ControlsPanel = ({
             }}
           >
             Delete Point (Del)
+          </button>
+          <button 
+            onClick={onToggleNodesAndPoints}
+            style={{
+              padding: '10px',
+              fontSize: '14px',
+              backgroundColor: '#FF9800',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {showNodesAndPoints ? 'Hide Nodes/Points' : 'Show Nodes/Points'}
           </button>
         </div>
       </div>
