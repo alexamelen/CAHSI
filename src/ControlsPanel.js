@@ -261,9 +261,9 @@ const ControlsPanel = ({
         padding: '15px',
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
         borderRadius: '8px',
-        borderLeft: '4px solid #FF9800',
+        borderLeft: '4px solid #FF0000',
       }}>
-        <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#FF9800' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#FF0000' }}>
           Note About Intersections
         </h3>
         <p style={{ 

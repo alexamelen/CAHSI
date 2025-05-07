@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
 import ControlsPanel from './ControlsPanel';
 
 const CanvasComponent = () => {
@@ -347,7 +348,7 @@ const CanvasComponent = () => {
       window.removeEventListener('resize', resize);
     };
   }, [draw]);
-
+  
   // Interaction handlers
   const handleClick = useCallback((e) => {
     const canvas = canvasRef.current;
@@ -425,7 +426,7 @@ const CanvasComponent = () => {
         }
   
         if (intersects) {
-          alert(`Intersection detected! ${intersectionMessage} Please reconfigure the nodes.`);
+          toast.error(`Intersection detected! ${intersectionMessage} Please reconfigure the nodes.`);
         }
       }
     }, 0);
@@ -537,7 +538,7 @@ const CanvasComponent = () => {
         movedNode.x = movedNode.originalX;
         movedNode.y = movedNode.originalY;
         draw(context);
-        alert(`Intersection detected! ${intersectionMessage} The node has been reverted to its original position.`);
+        toast.error(`Intersection detected! ${intersectionMessage} The node has been reverted to its original position.`);
       }
     } else if (isClick) {
       const target = within(x, y);
@@ -721,7 +722,7 @@ const CanvasComponent = () => {
         closedCurvesRef.current.add(currentCurveIndex);
         draw(canvasRef.current.getContext('2d'));
       } else {
-        alert('Closing the curve would cause an intersection with another curve or itself. Please adjust the nodes.');
+        toast.error('Closing the curve would cause an intersection with another curve or itself. Please adjust the nodes.');
       }
     }
   }, [draw, doLinesIntersect]);
