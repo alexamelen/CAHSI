@@ -9,7 +9,7 @@ function App() {
       <CanvasComponent />
       <ToastContainer
         position="bottom-right"
-        autoClose={5000}
+        autoClose={7000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick={false}

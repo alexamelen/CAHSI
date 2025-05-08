@@ -13,6 +13,8 @@ const ControlsPanel = ({
   onSegmentLengthChange,
   showNodesAndPoints,
   onToggleNodesAndPoints,
+  gridDensity,
+  onGridDensityChange
 }) => {
   const [isStraightMode, setIsStraightMode] = useState(false);
 
@@ -42,6 +44,29 @@ const ControlsPanel = ({
       fontFamily: 'Arial, sans-serif'
     }}>
       <h2 style={{ marginTop: 0, color: '#333' }}>Curve Controls</h2>
+      {/*Grid density toggle*/}
+      <div style={{ 
+        marginBottom: '20px',
+        padding: '10px',
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Grid Density</h3>
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9em', color: '#555' }}>
+            Grid Cell Dimension: {gridDensity}x{gridDensity} px
+          </label>
+          <input
+            type="range"
+            min="5"
+            max="100"
+            value={gridDensity}
+            onChange={(e) => onGridDensityChange(Number(e.target.value))}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
       
       {/* Visualization Mode Toggle */}
       <div style={{ 
@@ -254,26 +279,6 @@ const ControlsPanel = ({
             {showNodesAndPoints ? 'Hide Nodes/Points' : 'Show Nodes/Points'}
           </button>
         </div>
-      </div>
-
-      {/* Help Section */}
-      <div style={{
-        padding: '15px',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        borderRadius: '8px',
-        borderLeft: '4px solid #FF0000',
-      }}>
-        <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#FF0000' }}>
-          Note About Intersections
-        </h3>
-        <p style={{ 
-          margin: 0,
-          fontSize: '0.9em',
-          lineHeight: '1.5',
-          color: '#333'
-        }}>
-          Make sure your drawing does not include intersections. If an intersection is detected, you will be prompted to reconfigure your nodes!
-        </p>
       </div>
     </div>
   );

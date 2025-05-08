@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import ControlsPanel from './ControlsPanel';
+import GridComponent from './GridComponent';
 
 const CanvasComponent = () => {
   const canvasRef = useRef(null);
@@ -13,6 +14,8 @@ const CanvasComponent = () => {
   const [isDiscretized, setIsDiscretized] = useState(false);
   const [segmentLengthRatio, setSegmentLengthRatio] = useState(1.0);
   const [showNodesAndPoints, setShowNodesAndPoints] = useState(true);
+  const [gridDensity, setGridDensity] = useState(20); 
+
 
   // Utility functions
   const cubicBezierPoint = useCallback((t, p0, cp1, cp2, p3) => {
@@ -426,7 +429,7 @@ const CanvasComponent = () => {
         }
   
         if (intersects) {
-          toast.error(`Intersection detected! ${intersectionMessage} Please reconfigure the nodes.`);
+          toast.error(`Intersection detected! ${intersectionMessage} Please reconfigure the nodes before proceeding.`);
         }
       }
     }, 0);
@@ -722,7 +725,7 @@ const CanvasComponent = () => {
         closedCurvesRef.current.add(currentCurveIndex);
         draw(canvasRef.current.getContext('2d'));
       } else {
-        toast.error('Closing the curve would cause an intersection with another curve or itself. Please adjust the nodes.');
+        toast.error('Closing the curve would cause an intersection with another curve or itself. Please reconfigure the nodes before proceeding.');
       }
     }
   }, [draw, doLinesIntersect]);
@@ -778,13 +781,20 @@ const CanvasComponent = () => {
         onSegmentLengthChange={handleSegmentLengthChange}
         showNodesAndPoints={showNodesAndPoints}
         onToggleNodesAndPoints={toggleNodesAndPointsVisibility}
+        gridDensity = {gridDensity}
+        onGridDensityChange = {setGridDensity}
       />
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        style={{ display: 'block' }}
+        style={{ display: 'block', position: 'relative', zIndex: 2, backgroundColor: 'transparent'}}
+      />
+      <GridComponent
+        width = {canvasRef.current?.width || window.innerWidth}
+        height = {canvasRef.current?.height ||window.innerHeight}
+        cellSize={gridDensity}
       />
     </div>
   );
