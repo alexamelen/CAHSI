@@ -14,7 +14,8 @@ const CanvasComponent = () => {
   const [isDiscretized, setIsDiscretized] = useState(false);
   const [segmentLengthRatio, setSegmentLengthRatio] = useState(1.0);
   const [showNodesAndPoints, setShowNodesAndPoints] = useState(true);
-  const [gridDensity, setGridDensity] = useState(20); 
+  const [gridDensity, setGridDensity] = useState(20);
+  const [highlightedCells, setHighlightedCells] = useState([]);
 
 
   // Utility functions
@@ -141,6 +142,56 @@ const CanvasComponent = () => {
     return fittedPoints;
   }, [cubicBezierPoint]);
 
+  const getGridCell = (point, cellSize) => {
+    return {
+      x: Math.floor(point.x / cellSize),
+      y: Math.floor(point.y / cellSize)
+    };
+  };
+  
+  const getCellsForLineSegment = (start, end, cellSize) => {
+  const cells = [];
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const angle = Math.atan2(dy, dx); // Calculate direction angle
+  
+  // Sample points along the line
+  const steps = Math.max(Math.abs(dx), Math.abs(dy)) || 1;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const point = {
+      x: start.x + dx * t,
+      y: start.y + dy * t
+    };
+    const cell = getGridCell(point, cellSize);
+    
+    // Store cell with direction info
+    cells.push({
+      x: cell.x,
+      y: cell.y,
+      angle // Store the direction angle
+    });
+  }
+  
+  return cells;
+};
+  
+  const getCellsForBezierCurve = (p0, p1, p2, p3, cellSize, steps = 50) => {
+    const cells = new Set();
+    
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const point = cubicBezierPoint(t, p0, p1, p2, p3);
+      const cell = getGridCell(point, cellSize);
+      cells.add(`${cell.x},${cell.y}`);
+    }
+    
+    return Array.from(cells).map(str => {
+      const [x, y] = str.split(',').map(Number);
+      return { x, y };
+    });
+  };
+
   // Drawing functions
   const drawBezierCurve = useCallback((context, nodes, curveIndex) => {
     if (nodes.length < 2) return;
@@ -229,6 +280,9 @@ const CanvasComponent = () => {
   const draw = useCallback((context) => {
     // Clear the canvas
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
+    //tracking cells
+    const allCells = new Set();
     
     // Draw all curves
     curvesRef.current.forEach((curve, curveIndex) => {
@@ -257,7 +311,7 @@ const CanvasComponent = () => {
         const fittedPoints = getFittedPoints(curve, curveIndex, numPoints);
   
         if (isDiscretized) {
-          // DISCRETIZED MODE WITH GAPS
+          // discretized mode w/ gaps
           context.strokeStyle = '#000000';
           context.lineWidth = 1;
           
@@ -296,6 +350,8 @@ const CanvasComponent = () => {
             
             if (p1.isStraightSegment) {
               context.lineTo(p2.x, p2.y);
+              const cells = getCellsForLineSegment(p1, p2, gridDensity);
+              cells.forEach(cell => allCells.add(`${cell.x},${cell.y}`));
             } else {
               const p0 = curve[(i - 1 + curve.length) % curve.length];
               const p3 = curve[(i + 2) % curve.length];
@@ -308,6 +364,15 @@ const CanvasComponent = () => {
                 cp2x = (p1.x + p2.x) / 2;
                 cp2y = (p1.y + p2.y) / 2;
               }
+
+              const cells = getCellsForBezierCurve(
+                p1,
+                { x: cp1x, y: cp1y },
+                { x: cp2x, y: cp2y },
+                p2,
+                gridDensity
+              );
+              cells.forEach(cell => allCells.add(`${cell.x},${cell.y}`));
               
               context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             }
@@ -328,10 +393,11 @@ const CanvasComponent = () => {
         }
       }
     });
-    
-    // Draw faint connection lines in gaps (optional visual guide)
-    
-  }, [numPoints, isDiscretized, segmentLengthRatio, getFittedPoints, showNodesAndPoints]);
+    setHighlightedCells(Array.from(allCells).map(str => {
+      const [x, y] = str.split(',').map(Number);
+      return { x, y };
+    }));
+  }, [gridDensity, numPoints, isDiscretized, segmentLengthRatio, getFittedPoints, showNodesAndPoints]);
 
   // Canvas setup
   useEffect(() => {
@@ -795,6 +861,7 @@ const CanvasComponent = () => {
         width = {canvasRef.current?.width || window.innerWidth}
         height = {canvasRef.current?.height ||window.innerHeight}
         cellSize={gridDensity}
+        highlightedCells={highlightedCells}
       />
     </div>
   );

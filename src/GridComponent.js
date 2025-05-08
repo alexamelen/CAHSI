@@ -1,6 +1,6 @@
 import React from 'react';
 
-const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0' }) => {
+const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highlightedCells = [] }) => {
   const verticalLines = Math.ceil(width / cellSize);
   const horizontalLines = Math.ceil(height / cellSize);
   
@@ -17,6 +17,24 @@ const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0' }) => {
         backgroundColor: 'white'
       }}
     >
+       {highlightedCells.map((cell, index) => (
+        <g key={`cell-${index}`}>
+            <rect
+            key={`highlight-${index}`}
+            x={cell.x * cellSize}
+            y={cell.y * cellSize}
+            width={cellSize}
+            height={cellSize}
+            fill="rgba(255, 0, 0, 0.2)"
+            />
+            <circle
+                cx={(cell.x + 0.5) * cellSize}
+                cy={(cell.y + 0.5) * cellSize}
+                r={2} // Adjust radius as needed
+                fill="black"
+            />
+        </g>
+      ))}
       {/* Vertical lines */}
       {Array.from({ length: verticalLines + 1 }).map((_, i) => (
         <line
