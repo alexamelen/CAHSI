@@ -459,6 +459,11 @@ const CanvasComponent = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const context = canvas.getContext('2d');
+    
+    // Store the current state of curves before making changes
+    const previousCurves = JSON.parse(JSON.stringify(curvesRef.current));
+    const previousClosedCurves = new Set(closedCurvesRef.current);
+  
     const node = {
       x,
       y,
@@ -479,60 +484,62 @@ const CanvasComponent = () => {
   
     draw(context);
   
-    // Check for intersections AFTER drawing the node
-    setTimeout(() => {
-      const currentCurve = curvesRef.current[curvesRef.current.length - 1];
-      if (currentCurve.length >= 2) {
-        const newSegment = {
-          start: currentCurve[currentCurve.length - 2],
-          end: currentCurve[currentCurve.length - 1]
+    // Check for intersections
+    const currentCurve = curvesRef.current[curvesRef.current.length - 1];
+    if (currentCurve.length >= 2) {
+      const newSegment = {
+        start: currentCurve[currentCurve.length - 2],
+        end: currentCurve[currentCurve.length - 1]
+      };
+  
+      let intersects = false;
+      let intersectionMessage = '';
+  
+      // Check against other segments in same curve
+      for (let i = 0; i < currentCurve.length - 2; i++) {
+        const segment = {
+          start: currentCurve[i],
+          end: currentCurve[i + 1]
         };
   
-        let intersects = false;
-        let intersectionMessage = '';
-  
-        // Check against other segments in same curve
-        for (let i = 0; i < currentCurve.length - 2; i++) {
-          const segment = {
-            start: currentCurve[i],
-            end: currentCurve[i + 1]
-          };
-  
-          if (doLinesIntersect(newSegment, segment)) {
-            intersects = true;
-            intersectionMessage = 'Intersection detected within the same curve.';
-            break;
-          }
-        }
-  
-        // Check against segments in other curves
-        if (!intersects) {
-          for (let otherCurveIndex = 0; otherCurveIndex < curvesRef.current.length - 1; otherCurveIndex++) {
-            const otherCurve = curvesRef.current[otherCurveIndex];
-            const isOtherClosed = closedCurvesRef.current.has(otherCurveIndex);
-            const numSegments = isOtherClosed ? otherCurve.length : otherCurve.length - 1;
-  
-            for (let i = 0; i < numSegments; i++) {
-              const segment = {
-                start: otherCurve[i],
-                end: otherCurve[(i + 1) % otherCurve.length]
-              };
-  
-              if (doLinesIntersect(newSegment, segment)) {
-                intersects = true;
-                intersectionMessage = 'Intersection detected with another curve.';
-                break;
-              }
-            }
-            if (intersects) break;
-          }
-        }
-  
-        if (intersects) {
-          toast.error(`Intersection detected! ${intersectionMessage} Please reconfigure the nodes before proceeding.`);
+        if (doLinesIntersect(newSegment, segment)) {
+          intersects = true;
+          intersectionMessage = 'Intersection detected within the same curve.';
+          break;
         }
       }
-    }, 0);
+  
+      // Check against segments in other curves
+      if (!intersects) {
+        for (let otherCurveIndex = 0; otherCurveIndex < curvesRef.current.length - 1; otherCurveIndex++) {
+          const otherCurve = curvesRef.current[otherCurveIndex];
+          const isOtherClosed = closedCurvesRef.current.has(otherCurveIndex);
+          const numSegments = isOtherClosed ? otherCurve.length : otherCurve.length - 1;
+  
+          for (let i = 0; i < numSegments; i++) {
+            const segment = {
+              start: otherCurve[i],
+              end: otherCurve[(i + 1) % otherCurve.length]
+            };
+  
+            if (doLinesIntersect(newSegment, segment)) {
+              intersects = true;
+              intersectionMessage = 'Intersection detected with another curve.';
+              break;
+            }
+          }
+          if (intersects) break;
+        }
+      }
+  
+      if (intersects) {
+        // Revert to previous state
+        curvesRef.current = previousCurves;
+        closedCurvesRef.current = previousClosedCurves;
+        draw(context);
+        toast.error(`Intersection detected! ${intersectionMessage} Please place the node elsewhere.`);
+      }
+    }
   }, [draw, isStraightMode, doLinesIntersect]);
   
 
@@ -560,89 +567,119 @@ const CanvasComponent = () => {
     const isClick = !selectionRef.current?.isDragging;
   
     if (selectionRef.current && selectionRef.current.isDragging) {
-      selectionRef.current.selected = false;
-      selectionRef.current.isDragging = false;
       const movedNode = selectionRef.current;
-      selectionRef.current = null;
-      draw(context);
-  
-      // Immediate intersection check
+      movedNode.selected = false;
+      movedNode.isDragging = false;
+      
+      // Store new position
+      const newX = movedNode.x;
+      const newY = movedNode.y;
+      
+      // Revert to original position for intersection check
+      movedNode.x = movedNode.originalX;
+      movedNode.y = movedNode.originalY;
+      
       const currentCurveIndex = curvesRef.current.findIndex(curve => curve.includes(movedNode));
-      if (currentCurveIndex === -1) return;
+      if (currentCurveIndex === -1) {
+        selectionRef.current = null;
+        return;
+      }
   
       const currentCurve = curvesRef.current[currentCurveIndex];
       const nodeIndex = currentCurve.indexOf(movedNode);
       const isClosed = closedCurvesRef.current.has(currentCurveIndex);
   
+      // Move to new position for intersection check
+      movedNode.x = newX;
+      movedNode.y = newY;
+  
       let intersects = false;
       let intersectionMessage = '';
   
-      // Check connected segments in current curve
-      const connectedSegments = [];
-  
-      // Previous segment
+      // Get all segments that might be affected by this move
+      const affectedSegments = [];
+      
+      // Previous segment (if exists)
       if (nodeIndex > 0 || isClosed) {
         const prevIndex = (nodeIndex - 1 + currentCurve.length) % currentCurve.length;
-        connectedSegments.push({ start: currentCurve[prevIndex], end: movedNode });
+        affectedSegments.push({
+          start: currentCurve[prevIndex],
+          end: movedNode
+        });
       }
-  
-      // Next segment
+      
+      // Next segment (if exists)
       if (nodeIndex < currentCurve.length - 1 || isClosed) {
         const nextIndex = (nodeIndex + 1) % currentCurve.length;
-        connectedSegments.push({ start: movedNode, end: currentCurve[nextIndex] });
+        affectedSegments.push({
+          start: movedNode,
+          end: currentCurve[nextIndex]
+        });
       }
   
-      // Check against other segments in same curve
-      for (const segment of connectedSegments) {
-        for (let i = 0; i < currentCurve.length; i++) {
-          // Skip adjacent segments
-          if (i === nodeIndex || i === (nodeIndex - 1 + currentCurve.length) % currentCurve.length || i === (nodeIndex + 1) % currentCurve.length) {
-            continue;
-          }
+      // Check all segments in current curve against all other segments
+      for (let i = 0; i < currentCurve.length && !intersects; i++) {
+        const seg1Start = currentCurve[i];
+        const seg1End = currentCurve[(i + 1) % currentCurve.length];
+        
+        // Skip segments connected to the moved node
+        if (i === nodeIndex || 
+            (i + 1) % currentCurve.length === nodeIndex ||
+            (isClosed && i === (nodeIndex - 1 + currentCurve.length) % currentCurve.length)) {
+          continue;
+        }
   
-          const otherSegment = { start: currentCurve[i], end: currentCurve[(i + 1) % currentCurve.length] };
-  
-          if (doLinesIntersect(segment, otherSegment)) {
+        for (const affectedSegment of affectedSegments) {
+          if (doLinesIntersect(
+            { start: seg1Start, end: seg1End },
+            affectedSegment
+          )) {
             intersects = true;
             intersectionMessage = 'Intersection detected within the same curve.';
             break;
           }
         }
-        if (intersects) break;
       }
   
-      // Check against segments in other curves
+      // Check against other curves if no intersection found yet
       if (!intersects) {
-        for (let otherCurveIndex = 0; otherCurveIndex < curvesRef.current.length; otherCurveIndex++) {
+        for (let otherCurveIndex = 0; otherCurveIndex < curvesRef.current.length && !intersects; otherCurveIndex++) {
           if (otherCurveIndex === currentCurveIndex) continue;
   
           const otherCurve = curvesRef.current[otherCurveIndex];
           const isOtherClosed = closedCurvesRef.current.has(otherCurveIndex);
           const numSegments = isOtherClosed ? otherCurve.length : otherCurve.length - 1;
   
-          for (let i = 0; i < numSegments; i++) {
-            const otherSegment = { start: otherCurve[i], end: otherCurve[(i + 1) % otherCurve.length] };
+          for (let i = 0; i < numSegments && !intersects; i++) {
+            const otherSegment = {
+              start: otherCurve[i],
+              end: otherCurve[(i + 1) % otherCurve.length]
+            };
   
-            for (const segment of connectedSegments) {
-              if (doLinesIntersect(segment, otherSegment)) {
+            for (const affectedSegment of affectedSegments) {
+              if (doLinesIntersect(affectedSegment, otherSegment)) {
                 intersects = true;
                 intersectionMessage = 'Intersection detected with another curve.';
                 break;
               }
             }
-            if (intersects) break;
           }
-          if (intersects) break;
         }
       }
   
       if (intersects) {
-        // Revert the node position
+        // Revert to original position
         movedNode.x = movedNode.originalX;
         movedNode.y = movedNode.originalY;
-        draw(context);
         toast.error(`Intersection detected! ${intersectionMessage} The node has been reverted to its original position.`);
+      } else {
+        // Update original position to new valid position
+        movedNode.originalX = newX;
+        movedNode.originalY = newY;
       }
+  
+      selectionRef.current = null;
+      draw(context);
     } else if (isClick) {
       const target = within(x, y);
       if (!target) {
