@@ -14,7 +14,9 @@ const ControlsPanel = ({
   showNodesAndPoints,
   onToggleNodesAndPoints,
   gridDensity,
-  onGridDensityChange
+  onGridDensityChange,
+  showOriginalLines,
+  onToggleOriginalLines
 }) => {
   const [isStraightMode, setIsStraightMode] = useState(false);
 
@@ -265,6 +267,21 @@ const ControlsPanel = ({
             Delete Point (Del)
           </button>
           <button 
+            onClick={onToggleOriginalLines}
+            style={{
+              padding: '10px',
+              fontSize: '14px',
+              backgroundColor: '#F88379',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {showOriginalLines ? 'Hide Original Lines' : 'Show Original Lines'}
+          </button>
+        {showOriginalLines && (
+          <button 
             onClick={onToggleNodesAndPoints}
             style={{
               padding: '10px',
@@ -278,6 +295,7 @@ const ControlsPanel = ({
           >
             {showNodesAndPoints ? 'Hide Nodes/Points' : 'Show Nodes/Points'}
           </button>
+        )}
         </div>
       </div>
     </div>

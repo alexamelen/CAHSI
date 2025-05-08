@@ -16,6 +16,8 @@ const CanvasComponent = () => {
   const [showNodesAndPoints, setShowNodesAndPoints] = useState(true);
   const [gridDensity, setGridDensity] = useState(20);
   const [highlightedCells, setHighlightedCells] = useState([]);
+  const [showOriginalLines, setShowOriginalLines] = useState(true);
+
 
 
   // Utility functions
@@ -150,46 +152,66 @@ const CanvasComponent = () => {
   };
   
   const getCellsForLineSegment = (start, end, cellSize) => {
-  const cells = [];
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const angle = Math.atan2(dy, dx); // Calculate direction angle
+    const cells = new Map();
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const angle = Math.atan2(dy, dx);
   
-  // Sample points along the line
-  const steps = Math.max(Math.abs(dx), Math.abs(dy)) || 1;
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const point = {
-      x: start.x + dx * t,
-      y: start.y + dy * t
-    };
-    const cell = getGridCell(point, cellSize);
+    // Sample points along the line
+    const steps = Math.max(Math.abs(dx), Math.abs(dy)) || 1;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const point = {
+        x: start.x + dx * t,
+        y: start.y + dy * t
+      };
+      const cell = getGridCell(point, cellSize);
+      const cellKey = `${cell.x},${cell.y}`;
+      
+      if (!cells.has(cellKey)) {
+        cells.set(cellKey, {
+          x: cell.x,
+          y: cell.y,
+          angle
+        });
+      }
+    }
     
-    // Store cell with direction info
-    cells.push({
-      x: cell.x,
-      y: cell.y,
-      angle // Store the direction angle
-    });
-  }
+    return Array.from(cells.values());
+  };
   
-  return cells;
-};
-  
-  const getCellsForBezierCurve = (p0, p1, p2, p3, cellSize, steps = 50) => {
-    const cells = new Set();
+  const getCellsForBezierCurve = (p0, cp1, cp2, p3, cellSize, steps = 50) => {
+    const cells = new Map();
     
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      const point = cubicBezierPoint(t, p0, p1, p2, p3);
+      // Calculate position
+      const point = cubicBezierPoint(t, p0, cp1, cp2, p3);
+      // Calculate derivative (tangent vector)
+      const tangent = {
+        x: 3 * Math.pow(1-t, 2) * (cp1.x - p0.x) +
+           6 * (1-t) * t * (cp2.x - cp1.x) +
+           3 * Math.pow(t, 2) * (p3.x - cp2.x),
+        y: 3 * Math.pow(1-t, 2) * (cp1.y - p0.y) +
+           6 * (1-t) * t * (cp2.y - cp1.y) +
+           3 * Math.pow(t, 2) * (p3.y - cp2.y)
+      };
+      // Calculate angle from tangent vector
+      const angle = Math.atan2(tangent.y, tangent.x);
+      
       const cell = getGridCell(point, cellSize);
-      cells.add(`${cell.x},${cell.y}`);
+      const cellKey = `${cell.x},${cell.y}`;
+      
+      if (!cells.has(cellKey)) {
+        cells.set(cellKey, {
+          x: cell.x,
+          y: cell.y,
+          angle
+        });
+      }
     }
     
-    return Array.from(cells).map(str => {
-      const [x, y] = str.split(',').map(Number);
-      return { x, y };
-    });
+    return Array.from(cells.values());
   };
 
   // Drawing functions
@@ -282,11 +304,16 @@ const CanvasComponent = () => {
     context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
     //tracking cells
-    const allCells = new Set();
+    const allCells = new Map();
+
+    if(showOriginalLines){
+
+    
     
     // Draw all curves
     curvesRef.current.forEach((curve, curveIndex) => {
       // Draw control points (nodes) - only if showNodesAndPoints is true
+
       if (showNodesAndPoints) {
         curve.forEach(node => {
           context.beginPath();
@@ -341,40 +368,50 @@ const CanvasComponent = () => {
         } else {
           // SMOOTH CURVE MODE
           context.beginPath();
-          context.moveTo(curve[0].x, curve[0].y);
+        context.moveTo(curve[0].x, curve[0].y);
+        
+        const numSegments = isClosed ? curve.length : curve.length - 1;
+        for (let i = 0; i < numSegments; i++) {
+          const p1 = curve[i % curve.length];
+          const p2 = curve[(i + 1) % curve.length];
           
-          const numSegments = isClosed ? curve.length : curve.length - 1;
-          for (let i = 0; i < numSegments; i++) {
-            const p1 = curve[i % curve.length];
-            const p2 = curve[(i + 1) % curve.length];
-            
-            if (p1.isStraightSegment) {
-              context.lineTo(p2.x, p2.y);
-              const cells = getCellsForLineSegment(p1, p2, gridDensity);
-              cells.forEach(cell => allCells.add(`${cell.x},${cell.y}`));
-            } else {
-              const p0 = curve[(i - 1 + curve.length) % curve.length];
-              const p3 = curve[(i + 2) % curve.length];
-              let cp1x = p1.x + (p2.x - p0.x) / 6;
-              let cp1y = p1.y + (p2.y - p0.y) / 6;
-              let cp2x = p2.x - (p3.x - p1.x) / 6;
-              let cp2y = p2.y - (p3.y - p1.y) / 6;
-              
-              if (!isClosed && i === curve.length - 2) {
-                cp2x = (p1.x + p2.x) / 2;
-                cp2y = (p1.y + p2.y) / 2;
+          if (p1.isStraightSegment) {
+            context.lineTo(p2.x, p2.y);
+            const cells = getCellsForLineSegment(p1, p2, gridDensity);
+            cells.forEach(cell => {
+              const cellKey = `${cell.x},${cell.y}`;
+              if (!allCells.has(cellKey)) {
+                allCells.set(cellKey, cell);
               }
+            });
+          } else {
+            const p0 = curve[(i - 1 + curve.length) % curve.length];
+            const p3 = curve[(i + 2) % curve.length];
+            let cp1x = p1.x + (p2.x - p0.x) / 6;
+            let cp1y = p1.y + (p2.y - p0.y) / 6;
+            let cp2x = p2.x - (p3.x - p1.x) / 6;
+            let cp2y = p2.y - (p3.y - p1.y) / 6;
+            
+            if (!isClosed && i === curve.length - 2) {
+              cp2x = (p1.x + p2.x) / 2;
+              cp2y = (p1.y + p2.y) / 2;
+            }
 
-              const cells = getCellsForBezierCurve(
-                p1,
-                { x: cp1x, y: cp1y },
-                { x: cp2x, y: cp2y },
-                p2,
-                gridDensity
-              );
-              cells.forEach(cell => allCells.add(`${cell.x},${cell.y}`));
-              
-              context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            const cells = getCellsForBezierCurve(
+              p1,
+              { x: cp1x, y: cp1y },
+              { x: cp2x, y: cp2y },
+              p2,
+              gridDensity
+            );
+            cells.forEach(cell => {
+              const cellKey = `${cell.x},${cell.y}`;
+              if (!allCells.has(cellKey)) {
+                allCells.set(cellKey, cell); // Now includes angle for bezier curves too
+              }
+            });
+            
+            context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             }
           }
           context.strokeStyle = '#000000';
@@ -393,11 +430,8 @@ const CanvasComponent = () => {
         }
       }
     });
-    setHighlightedCells(Array.from(allCells).map(str => {
-      const [x, y] = str.split(',').map(Number);
-      return { x, y };
-    }));
-  }, [gridDensity, numPoints, isDiscretized, segmentLengthRatio, getFittedPoints, showNodesAndPoints]);
+    setHighlightedCells(Array.from(allCells.values()));
+  }}, [showOriginalLines, gridDensity, numPoints, isDiscretized, segmentLengthRatio, getFittedPoints, showNodesAndPoints]);
 
   // Canvas setup
   useEffect(() => {
@@ -849,6 +883,8 @@ const CanvasComponent = () => {
         onToggleNodesAndPoints={toggleNodesAndPointsVisibility}
         gridDensity = {gridDensity}
         onGridDensityChange = {setGridDensity}
+        showOriginalLines={showOriginalLines}
+        onToggleOriginalLines={() => setShowOriginalLines(!showOriginalLines)}
       />
       <canvas
         ref={canvasRef}
@@ -867,4 +903,4 @@ const CanvasComponent = () => {
   );
 };
 
-export default CanvasComponent;
+export default CanvasComponent; 

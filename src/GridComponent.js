@@ -17,24 +17,52 @@ const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highli
         backgroundColor: 'white'
       }}
     >
-       {highlightedCells.map((cell, index) => (
-        <g key={`cell-${index}`}>
+       {highlightedCells.map((cell, index) => {
+        const centerX = (cell.x + 0.5) * cellSize;
+        const centerY = (cell.y + 0.5) * cellSize;
+        
+        // Only show orientation if angle is defined
+        const showOrientation = typeof cell.angle !== 'undefined';
+        const endX = showOrientation 
+          ? centerX + Math.cos(cell.angle) * cellSize * 0.4 
+          : centerX;
+        const endY = showOrientation 
+          ? centerY + Math.sin(cell.angle) * cellSize * 0.4 
+          : centerY;
+
+        return (
+          <g key={`cell-${index}`}>
+            {/* Highlighted cell background */}
             <rect
-            key={`highlight-${index}`}
-            x={cell.x * cellSize}
-            y={cell.y * cellSize}
-            width={cellSize}
-            height={cellSize}
-            fill="rgba(255, 0, 0, 0.2)"
+              x={cell.x * cellSize}
+              y={cell.y * cellSize}
+              width={cellSize}
+              height={cellSize}
+              fill="rgba(255, 0, 0, 0.1)"
             />
-            <circle
-                cx={(cell.x + 0.5) * cellSize}
-                cy={(cell.y + 0.5) * cellSize}
-                r={2} // Adjust radius as needed
-                fill="black"
-            />
-        </g>
-      ))}
+            
+            {/* Only show orientation line if angle exists */}
+            {showOrientation && (
+              <>
+                <line
+                  x1={centerX}
+                  y1={centerY}
+                  x2={endX}
+                  y2={endY}
+                  stroke="blue"
+                  strokeWidth={2}
+                />
+                <circle
+                  cx={endX}
+                  cy={endY}
+                  r={3}
+                  fill="purple"
+                />
+              </>
+            )}
+          </g>
+        );
+    })}
       {/* Vertical lines */}
       {Array.from({ length: verticalLines + 1 }).map((_, i) => (
         <line
