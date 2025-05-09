@@ -17,6 +17,8 @@ const CanvasComponent = () => {
   const [gridDensity, setGridDensity] = useState(20);
   const [highlightedCells, setHighlightedCells] = useState([]);
   const [showOriginalLines, setShowOriginalLines] = useState(true);
+  const [showGridSegments, setShowGridSegments] = useState(false);
+
 
 
 
@@ -922,6 +924,8 @@ const CanvasComponent = () => {
         onGridDensityChange = {setGridDensity}
         showOriginalLines={showOriginalLines}
         onToggleOriginalLines={() => setShowOriginalLines(!showOriginalLines)}
+        showGridSegments={showGridSegments}
+        onToggleGridSegments={() => setShowGridSegments(!showGridSegments)}
       />
       <canvas
         ref={canvasRef}
@@ -935,6 +939,7 @@ const CanvasComponent = () => {
         height = {canvasRef.current?.height ||window.innerHeight}
         cellSize={gridDensity}
         highlightedCells={highlightedCells}
+        showSegments = {showGridSegments}
       />
     </div>
   );

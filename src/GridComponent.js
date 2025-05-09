@@ -1,6 +1,6 @@
 import React from 'react';
 
-const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highlightedCells = [] }) => {
+const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highlightedCells = [], showSegments=true }) => {
   const verticalLines = Math.ceil(width / cellSize);
   const horizontalLines = Math.ceil(height / cellSize);
   
@@ -21,8 +21,8 @@ const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highli
         const centerX = (cell.x + 0.5) * cellSize;
         const centerY = (cell.y + 0.5) * cellSize;
         
-        // Only show orientation if angle is defined
-        const showOrientation = typeof cell.angle !== 'undefined';
+        // Only show orientation if angle is defined and showSegments is true
+        const showOrientation = showSegments && typeof cell.angle !== 'undefined';
         const endX = showOrientation 
           ? centerX + Math.cos(cell.angle) * cellSize * 0.4 
           : centerX;
@@ -41,7 +41,7 @@ const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highli
               fill="rgba(255, 0, 0, 0.1)"
             />
             
-            {/* Only show orientation line if angle exists */}
+            {/* Only show orientation line if angle exists and showSegments is true */}
             {showOrientation && (
               <>
                 <line
@@ -62,7 +62,8 @@ const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highli
             )}
           </g>
         );
-    })}
+      })}
+      
       {/* Vertical lines */}
       {Array.from({ length: verticalLines + 1 }).map((_, i) => (
         <line

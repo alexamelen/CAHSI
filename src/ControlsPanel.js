@@ -16,19 +16,11 @@ const ControlsPanel = ({
   gridDensity,
   onGridDensityChange,
   showOriginalLines,
-  onToggleOriginalLines
+  onToggleOriginalLines,
+  showGridSegments,
+  onToggleGridSegments
 }) => {
   const [isStraightMode, setIsStraightMode] = useState(false);
-
-  const handleModeToggle = () => {
-    const newMode = !isStraightMode;
-    setIsStraightMode(newMode);
-    onToggleMode(newMode);
-  };
-
-  const handleDiscretizationToggle = () => {
-    onToggleDiscretization();
-  };
 
   return (
     <div style={{
@@ -46,7 +38,8 @@ const ControlsPanel = ({
       fontFamily: 'Arial, sans-serif'
     }}>
       <h2 style={{ marginTop: 0, color: '#333' }}>Curve Controls</h2>
-      {/*Grid density toggle*/}
+
+      {/* Grid Density Control */}
       <div style={{ 
         marginBottom: '20px',
         padding: '10px',
@@ -54,10 +47,10 @@ const ControlsPanel = ({
         borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
-        <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Grid Density</h3>
+        <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Grid Cell Dimension</h3>
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9em', color: '#555' }}>
-            Grid Cell Dimension: {gridDensity}x{gridDensity} px
+            {gridDensity}x{gridDensity} px
           </label>
           <input
             type="range"
@@ -70,7 +63,41 @@ const ControlsPanel = ({
         </div>
       </div>
       
-      {/* Visualization Mode Toggle */}
+      {/*Grid discretization visibilty */}
+      <div style={{ 
+        marginBottom: '20px',
+        padding: '10px',
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+      <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9em', color: '#555' }}>Grid Discretization</h4>
+      <div style={{ display: 'flex', gap: '15px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="gridSegmentsVisibility"
+            checked={showGridSegments}
+            onChange={() => onToggleGridSegments(true)}
+            style={{ marginRight: '6px' }}
+          />
+          On
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="gridSegmentsVisibility"
+            checked={!showGridSegments}
+            onChange={() => onToggleGridSegments(false)}
+            style={{ marginRight: '6px' }}
+          />
+          Off
+        </label>
+      </div>
+    </div>
+    
+
+      {/* Visualization Mode - Radio Buttons */}
       <div style={{ 
         marginBottom: '20px',
         padding: '10px',
@@ -79,31 +106,54 @@ const ControlsPanel = ({
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
         <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Visualization Mode</h3>
-        <button 
-          onClick={handleDiscretizationToggle}
-          style={{
-            padding: '10px',
-            fontSize: '14px',
-            width: '100%',
-            backgroundColor: isDiscretized ? '#4CAF50' : '#2196F3',
-            color: 'white',
-            border: 'none',
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
             borderRadius: '4px',
+            backgroundColor: !isDiscretized ? 'rgba(33, 150, 243, 0.1)' : 'transparent',
             cursor: 'pointer',
-            transition: 'background-color 0.3s',
-            marginBottom: '8px'
-          }}
-        >
-          {isDiscretized ? 'Discretized Mode' : 'Smooth Mode'}
-        </button>
-        <div style={{
-          fontSize: '0.85em',
-          color: '#666',
-          textAlign: 'center'
-        }}>
-          {isDiscretized 
-            ? 'Showing segmented approximation with gaps' 
-            : 'Showing smooth Bézier curves'}
+            transition: 'background-color 0.2s'
+          }}>
+            <input
+              type="radio"
+              name="visualizationMode"
+              checked={!isDiscretized}
+              onChange={() => onToggleDiscretization(false)}
+              style={{ marginRight: '8px' }}
+            />
+            <div>
+              <div style={{ fontWeight: '500', color: '#333' }}>Smooth Mode</div>
+              <div style={{ fontSize: '0.85em', color: '#666' }}>
+                Showing smooth Bézier curves
+              </div>
+            </div>
+          </label>
+
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
+            borderRadius: '4px',
+            backgroundColor: isDiscretized ? 'rgba(33, 150, 243, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s'
+          }}>
+            <input
+              type="radio"
+              name="visualizationMode"
+              checked={isDiscretized}
+              onChange={() => onToggleDiscretization(true)}
+              style={{ marginRight: '8px' }}
+            />
+            <div>
+              <div style={{ fontWeight: '500', color: '#333' }}>Discretized Mode</div>
+              <div style={{ fontSize: '0.85em', color: '#666' }}>
+                Showing segmented approximation with gaps
+              </div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -150,7 +200,7 @@ const ControlsPanel = ({
         </div>
       )}
 
-      {/* Drawing Mode */}
+      {/* Drawing Mode - Radio Buttons */}
       <div style={{ 
         marginBottom: '20px',
         padding: '10px',
@@ -159,35 +209,58 @@ const ControlsPanel = ({
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
         <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Drawing Mode</h3>
-        <button 
-          onClick={handleModeToggle}
-          style={{
-            padding: '10px',
-            fontSize: '14px',
-            width: '100%',
-            backgroundColor: isStraightMode ? '#FF9800' : '#9C27B0',
-            color: 'white',
-            border: 'none',
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
             borderRadius: '4px',
+            backgroundColor: !isStraightMode ? 'rgba(156, 39, 176, 0.1)' : 'transparent',
             cursor: 'pointer',
-            transition: 'background-color 0.3s',
-            marginBottom: '8px'
-          }}
-        >
-          {isStraightMode ? 'Straight Line Mode' : 'Curved Mode'}
-        </button>
-        <div style={{
-          fontSize: '0.85em',
-          color: '#666',
-          textAlign: 'center'
-        }}>
-          {isStraightMode 
-            ? 'New segments will be straight lines' 
-            : 'New segments will be smooth curves'}
+            transition: 'background-color 0.2s'
+          }}>
+            <input
+              type="radio"
+              name="drawingMode"
+              checked={!isStraightMode}
+              onChange={() => {
+                setIsStraightMode(false);
+                onToggleMode(false);
+              }}
+              style={{ marginRight: '8px' }}
+            />
+            <div>
+              <div style={{ fontWeight: '500', color: '#333' }}>Curved Mode</div>
+            </div>
+          </label>
+
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
+            borderRadius: '4px',
+            backgroundColor: isStraightMode ? 'rgba(156, 39, 176, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s'
+          }}>
+            <input
+              type="radio"
+              name="drawingMode"
+              checked={isStraightMode}
+              onChange={() => {
+                setIsStraightMode(true);
+                onToggleMode(true);
+              }}
+              style={{ marginRight: '8px' }}
+            />
+            <div>
+              <div style={{ fontWeight: '500', color: '#333' }}>Straight Line Mode</div>
+            </div>
+          </label>
         </div>
       </div>
 
-      {/* Curve Settings */}
+      {/* Showing/Hiding*/}
       <div style={{ 
         marginBottom: '20px',
         padding: '10px',
@@ -195,23 +268,63 @@ const ControlsPanel = ({
         borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
-        <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Curve Settings</h3>
+        <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Showing/Hiding</h3>
+        
+        {/* Original Lines Visibility */}
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9em', color: '#555' }}>
-            Fitted Points: {numPoints}
-          </label>
-          <input
-            type="range"
-            min="5"
-            max="50"
-            value={numPoints}
-            onChange={(e) => onNumPointsChange(parseInt(e.target.value))}
-            style={{ width: '100%' }}
-          />
-          <div style={{ fontSize: '0.8em', color: '#888', textAlign: 'center', marginTop: '5px' }}>
-            Controls the number of red sampling points
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9em', color: '#555' }}>Original Lines</h4>
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="originalLinesVisibility"
+                checked={showOriginalLines}
+                onChange={() => onToggleOriginalLines(true)}
+                style={{ marginRight: '6px' }}
+              />
+              Show
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="originalLinesVisibility"
+                checked={!showOriginalLines}
+                onChange={() => onToggleOriginalLines(false)}
+                style={{ marginRight: '6px' }}
+              />
+              Hide
+            </label>
           </div>
         </div>
+
+        {/* Nodes/Points Visibility */}
+        {showOriginalLines && (
+          <div>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9em', color: '#555' }}>Nodes & Points</h4>
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="nodesVisibility"
+                  checked={showNodesAndPoints}
+                  onChange={() => onToggleNodesAndPoints(true)}
+                  style={{ marginRight: '6px' }}
+                />
+                Show
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="nodesVisibility"
+                  checked={!showNodesAndPoints}
+                  onChange={() => onToggleNodesAndPoints(false)}
+                  style={{ marginRight: '6px' }}
+                />
+                Hide
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Curve Actions */}
@@ -266,36 +379,6 @@ const ControlsPanel = ({
           >
             Delete Point (Del)
           </button>
-          <button 
-            onClick={onToggleOriginalLines}
-            style={{
-              padding: '10px',
-              fontSize: '14px',
-              backgroundColor: '#F88379',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            {showOriginalLines ? 'Hide Original Lines' : 'Show Original Lines'}
-          </button>
-        {showOriginalLines && (
-          <button 
-            onClick={onToggleNodesAndPoints}
-            style={{
-              padding: '10px',
-              fontSize: '14px',
-              backgroundColor: '#FF9800',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            {showNodesAndPoints ? 'Hide Nodes/Points' : 'Show Nodes/Points'}
-          </button>
-        )}
         </div>
       </div>
     </div>
