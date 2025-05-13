@@ -260,6 +260,33 @@ const ControlsPanel = ({
         </div>
       </div>
 
+      {/* Curve Settings */}
+      <div style={{ 
+        marginBottom: '20px',
+        padding: '10px',
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ marginTop: 0, fontSize: '1em', color: '#555' }}>Curve Settings</h3>
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9em', color: '#555' }}>
+            Fitted Points: {numPoints}
+          </label>
+          <input
+            type="range"
+            min="5"
+            max="50"
+            value={numPoints}
+            onChange={(e) => onNumPointsChange(parseInt(e.target.value))}
+            style={{ width: '100%' }}
+          />
+          <div style={{ fontSize: '0.8em', color: '#888', textAlign: 'center', marginTop: '5px' }}>
+            Controls the number of red sampling points
+          </div>
+        </div>
+      </div>
+
       {/* Showing/Hiding*/}
       <div style={{ 
         marginBottom: '20px',
