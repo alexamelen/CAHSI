@@ -325,33 +325,31 @@ const ControlsPanel = ({
         </div>
 
         {/* Nodes/Points Visibility */}
-        {showOriginalLines && (
-          <div>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9em', color: '#555' }}>Nodes & Points</h4>
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="nodesVisibility"
-                  checked={showNodesAndPoints}
-                  onChange={() => onToggleNodesAndPoints(true)}
-                  style={{ marginRight: '6px' }}
-                />
-                Show
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="nodesVisibility"
-                  checked={!showNodesAndPoints}
-                  onChange={() => onToggleNodesAndPoints(false)}
-                  style={{ marginRight: '6px' }}
-                />
-                Hide
-              </label>
-            </div>
+        <div>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9em', color: '#555' }}>Nodes & Points</h4>
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="nodesVisibility"
+                checked={showNodesAndPoints}
+                onChange={() => onToggleNodesAndPoints(true)}
+                style={{ marginRight: '6px' }}
+              />
+              Show
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="nodesVisibility"
+                checked={!showNodesAndPoints}
+                onChange={() => onToggleNodesAndPoints(false)}
+                style={{ marginRight: '6px' }}
+              />
+              Hide
+            </label>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Curve Actions */}

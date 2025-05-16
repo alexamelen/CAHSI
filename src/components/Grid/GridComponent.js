@@ -1,5 +1,14 @@
 import React from 'react';
 
+
+export const getGridCell = (point, cellSize) => {
+  return {
+    x: Math.floor(point.x / cellSize),
+    y: Math.floor(point.y / cellSize)
+  };
+};
+
+
 const GridComponent = ({ width, height, cellSize = 20, color = '#e0e0e0', highlightedCells = [], showSegments=true }) => {
   const verticalLines = Math.ceil(width / cellSize);
   const horizontalLines = Math.ceil(height / cellSize);

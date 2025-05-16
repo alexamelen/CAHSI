@@ -1,5 +1,5 @@
 import React from 'react';
-import CanvasComponent from './CanvasComponent';
+import CanvasComponent from './components/Canvas/CanvasComponent';
 import { ToastContainer, Bounce } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
